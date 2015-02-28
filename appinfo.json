@@ -1,0 +1,23 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        ""
+    ],
+    "companyName": "andreas_mih@yahoo.com",
+    "longName": "Ball_C",
+    "projectType": "native",
+    "resources": {
+        "media": []
+    },
+    "sdkVersion": "3",
+    "shortName": "Ball_C",
+    "targetPlatforms": [
+        "basalt"
+    ],
+    "uuid": "118f6cb2-14bb-4aaf-9ce6-0511bf93a3cb",
+    "versionCode": 1,
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
+}
