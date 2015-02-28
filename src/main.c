@@ -7,6 +7,7 @@
   
 #define MARGIN 3
 #define WALL_WIDTH 8
+#define PLAYER_WIDTH 10
 static Window *s_game_window;
 
 int currx, curry, boundx, boundy;
@@ -32,6 +33,10 @@ static void game_draw(GContext *ctx) {
 
   graphics_fill_rect(ctx, GRect(MARGIN, MARGIN, WALL_WIDTH, boundy - 2 * MARGIN), 0, 0);
   graphics_fill_rect(ctx, GRect(boundx - MARGIN - WALL_WIDTH, MARGIN, WALL_WIDTH, boundy - 2 * MARGIN), 0, 0);
+  
+  graphics_context_set_fill_color(ctx, GColorFromRGB(0, 255, 0));
+  graphics_fill_circle(ctx, GPoint(currx, curry), PLAYER_WIDTH);
+  
 }
 
 static void game_click(int button_id, bool long_click) {
@@ -49,8 +54,8 @@ void pge_init() {
   boundx = bounds.size.w;
   boundy = bounds.size.h;
   
-  currx = 0;
-  curry = boundy + 4;
+  currx = MARGIN + WALL_WIDTH + PLAYER_WIDTH + MARGIN;
+  curry = boundy - PLAYER_WIDTH - MARGIN;
   
 }
 
