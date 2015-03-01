@@ -16,8 +16,10 @@
   
 static Window *s_game_window;
 
-int currx, curry, boundx, boundy, default_left, default_right, default_bottom, curr_direction = 1, ball_moving = 0, difficulty_speed = 2;
+int player_width = PLAYER_WIDTH;
+int currx, curry, boundx, boundy, default_left, default_right, default_bottom, curr_direction = 0, ball_moving = 0, difficulty_speed = 2;
 int ball_count = 0, holes_count = 0;
+bool close_program = 0;
 
   
 GPoint createPoint(int a, int b)
@@ -90,6 +92,16 @@ static void move_ball () {
         }
       }
     }
+    else {
+      int i = 0;
+      for (i = 0; i < 6; i++) {
+        if (curr_direction == hole_list[i].wall_side ) {
+          if (default_bottom - hole_list[i].y < HOLE_WIDTH && default_bottom - hole_list[i].y > 0) {
+            close_program = 1;
+          }  
+        }
+      }
+    }
     ball_count = 0;
   }
   if (BALL_UPDATE_FREQ != 0) {
@@ -97,6 +109,30 @@ static void move_ball () {
   }
   
 }
+
+static void explode_ball () {
+  
+  if (curry > boundy/2) {
+    curry--;
+  }
+  
+  if (curr_direction == 1) {
+    if (currx > boundx/2) {
+      currx--;
+    }
+  }
+  else {
+    if (currx < boundx/2) {
+      currx++;
+    }
+  }
+  player_width++;
+  if (player_width > boundy + 20) {
+    
+  }
+  
+}
+
 int myabs(int a,int b){
   if (a > b){
     return a - b;
@@ -178,9 +214,15 @@ static void move_holes () {
 
 static void game_logic() {
   
-  move_ball();
+  if (!close_program) {
+    move_ball();
   
-  move_holes();
+    move_holes();
+  }
+  
+  else {
+    explode_ball();
+  }
   
 }
 
@@ -203,12 +245,14 @@ static void game_draw(GContext *ctx) {
   graphics_fill_rect(ctx, GRect(MARGIN, MARGIN, WALL_WIDTH, boundy - 2 * MARGIN), 0, 0);
   graphics_fill_rect(ctx, GRect(boundx - MARGIN - WALL_WIDTH, MARGIN, WALL_WIDTH, boundy - 2 * MARGIN), 0, 0);
   
-  graphics_context_set_fill_color(ctx, GColorFromRGB(0, 255, 0));
-  graphics_fill_circle(ctx, GPoint(currx, curry), PLAYER_WIDTH);
-  
-  graphics_context_set_fill_color(ctx, GColorFromRGB(0, 0, 255));
+  graphics_context_set_fill_color(ctx, GColorBlack);
   draw_holes (ctx);
-  //graphics_fill_rect(ctx, GRect(MARGIN, MARGIN + hole_pos, WALL_WIDTH, PLAYER_WIDTH * 2), 0, 0);
+  
+  graphics_context_set_fill_color(ctx, GColorFromRGB(0, 255, 0));
+    
+  graphics_fill_circle(ctx, GPoint(currx, curry), player_width);
+
+  //graphics_fill_rect(ctx, GRect(MARGIN, MARGIN + hole_pos, WALL_WIDTH, player_width * 2), 0, 0);
   
 }
 
@@ -260,6 +304,18 @@ static void config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_DOWN, down_click_handler);
 }*/
 
+
+void init_holes () {
+  int i = 0;
+  hole_list[9].wall_side = 6;
+  for (i = 0; i < hole_list[9].wall_side; i++) {
+    hole_list[i].y = -150;
+    
+  }
+
+ 
+}
+
 void pge_init() {
   // Start the game, keep a Window reference for later
   s_game_window = pge_begin(GColorBlack, game_logic, game_draw, game_click);
@@ -270,23 +326,15 @@ void pge_init() {
   boundx = bounds.size.w;
   boundy = bounds.size.h;
   
-  currx = MARGIN + WALL_WIDTH + PLAYER_WIDTH + MARGIN;
-  curry = boundy - PLAYER_WIDTH - MARGIN;
+  currx = MARGIN + WALL_WIDTH + player_width + MARGIN;
+  curry = boundy - player_width - MARGIN;
   
   default_left = currx;
-  default_right = boundx - (MARGIN * 2 + WALL_WIDTH + PLAYER_WIDTH); 
+  default_right = boundx - (MARGIN * 2 + WALL_WIDTH + player_width); 
   default_bottom = curry;
   
-  hole_list[0].y = 0;
-  hole_list[1].y = 30;
-  hole_list[2].y = 60;
-  hole_list[3].y = 0;
-  hole_list[3].wall_side = 1;
-  hole_list[4].y = 30;
-  hole_list[4].wall_side = 1;
-  hole_list[5].y = 90;
-  hole_list[5].wall_side = 1;
-  hole_list[9].wall_side = 6;
+
+  init_holes();
   //window_set_click_config_provider(s_game_window, config_provider);
   
 }
