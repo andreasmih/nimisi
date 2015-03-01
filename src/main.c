@@ -8,14 +8,16 @@
 #define MARGIN 3
 #define WALL_WIDTH 8
 #define PLAYER_WIDTH 10
+#define HOLE_WIDTH (PLAYER_WIDTH * 4)
 #define MAX_LIMIT -200
 #define MIN_LIMIT -100
-#define BALL_UPDATE_FREQ 3
+#define BALL_UPDATE_FREQ 0
+#define WALL_UPDATE_FREQ 3
   
 static Window *s_game_window;
 
 int currx, curry, boundx, boundy, default_left, default_right, default_bottom, curr_direction = 1, ball_moving = 0, difficulty_speed = 2;
-int count = 0;
+int ball_count = 0, holes_count = 0;
 
   
 GPoint createPoint(int a, int b)
@@ -26,9 +28,43 @@ GPoint createPoint(int a, int b)
   return usedPoint;
 };
  
+struct wall_hole {
+   int wall_side;
+   int y;
+} hole_list[10];
+
+
+
+int get_random_wall (int wall) {
+  
+  if(rand() % 2 == 1) {
+    wall = 1;
+  }
+  else {
+    wall = 0;
+  }
+  
+  if(rand() % 15 == 1) {
+    wall = 999;    
+  }
+  
+  return wall;
+
+}
+
+int get_random_y (int y) {
+  
+
+  y = - ((rand() % (-MAX_LIMIT+MIN_LIMIT)) - MIN_LIMIT);
+  
+
+  return y;
+
+}
+
 
 static void move_ball () {
-  if (count == BALL_UPDATE_FREQ) {
+  if (ball_count == BALL_UPDATE_FREQ) {
     if (ball_moving == 1) {
       if (curr_direction == 1) {
         if (currx < default_right) {
@@ -54,15 +90,64 @@ static void move_ball () {
         }
       }
     }
-    count = 0;
+    ball_count = 0;
   }
-  count++;
+  if (BALL_UPDATE_FREQ != 0) {
+    ball_count++;
+  }
+  
+}
+int myabs(int a,int b){
+  if (a > b){
+    return a - b;
+  }
+  else return b-a;
+  
 }
 
-struct wall_hole {
-   int wall_side;
-   int y;
-} hole_list[10];
+static void move_holes () {
+  int i = 0;
+  if (holes_count == WALL_UPDATE_FREQ) {
+    for (i = 0; i < 6; i++) { 
+      if (hole_list[i].wall_side == 999) {
+        hole_list[i].wall_side = get_random_wall(hole_list[i].wall_side);
+        if (hole_list[i].wall_side != 999) {
+          int a = get_random_y(hole_list[i].y);
+          int j = 0;
+          bool ok = 1;
+          for (j = 0; j < 6; j++) {
+            if (i!=j) {
+              if (myabs(a, hole_list[j].y) < HOLE_WIDTH + 10) {
+                ok = 0;  
+              }
+              
+            }
+          }
+          if(ok) {
+            hole_list[i].y = a;
+          }
+        }
+      }
+      else {
+      
+        if (hole_list[i].y > boundy) {
+          hole_list[i].wall_side = 999;
+        }
+        else {
+          hole_list[i].y ++;
+          
+        }
+      }
+    }
+    holes_count = 0;
+  }
+  if (WALL_UPDATE_FREQ != 0) {
+    holes_count++;
+  }
+
+}
+
+
 
 
 
@@ -89,57 +174,13 @@ struct wall_hole {
 
 }*/
 
-int get_random_wall (int wall) {
-  
-  if(rand() % 2 == 1) {
-    wall = 1;
-  }
-  else {
-    wall = 0;
-  }
-  
-  if(rand() % 2 == 1) {
-    wall = 999;    
-  }
-  
-  return wall;
 
-}
-
-int get_random_y (int y) {
-  
-  if(rand() % 5 == 1) {
-       y = - ((rand() % (-MAX_LIMIT+MIN_LIMIT)) - MIN_LIMIT);
-  }
-
-  return y;
-
-}
 
 static void game_logic() {
   
   move_ball();
-  int i = 0;
-  for (i = 0; i < 6; i++) {
-    
-    if (hole_list[i].wall_side == 999) {
-      hole_list[i].wall_side = get_random_wall(hole_list[i].wall_side);
-      hole_list[i].y = get_random_y(hole_list[i].y);
-    }
-    else {
-    
-      if (hole_list[i].y > boundy) {
-        hole_list[i].wall_side = 999;
-      }
-      else {
-        hole_list[i].y ++;
-      }
-    }
-    
-    
-  }
   
-  
+  move_holes();
   
 }
 
@@ -148,7 +189,7 @@ static void draw_holes(GContext *ctx) {
   int i = 0;
   for (i = 0; i < length; i++) {
     if (hole_list[i].wall_side != 999) {
-      graphics_fill_rect(ctx, GRect(MARGIN + hole_list[i].wall_side * (boundx - 2 * MARGIN - WALL_WIDTH), MARGIN + hole_list[i].y, WALL_WIDTH, PLAYER_WIDTH * 2), 0, 0);
+      graphics_fill_rect(ctx, GRect(MARGIN + hole_list[i].wall_side * (boundx - 2 * MARGIN - WALL_WIDTH), MARGIN + hole_list[i].y, WALL_WIDTH, HOLE_WIDTH), 0, 0);
     }
   }
 }
