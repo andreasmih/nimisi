@@ -10,10 +10,11 @@
 #define PLAYER_WIDTH 10
 #define MAX_LIMIT -200
 #define MIN_LIMIT -100
+#define BALL_UPDATE_FREQ 3
   
 static Window *s_game_window;
 
-int currx, curry, boundx, boundy, default_left, default_right, default_bottom, curr_direction = 1, ball_moving = 0, difficulty_speed = 2, hole_pos = 0;
+int currx, curry, boundx, boundy, default_left, default_right, default_bottom, curr_direction = 1, ball_moving = 0, difficulty_speed = 2;
 int count = 0;
 
   
@@ -27,8 +28,7 @@ GPoint createPoint(int a, int b)
  
 
 static void move_ball () {
-  if (count == 3) {
-    hole_pos ++;
+  if (count == BALL_UPDATE_FREQ) {
     if (ball_moving == 1) {
       if (curr_direction == 1) {
         if (currx < default_right) {
@@ -108,7 +108,6 @@ int get_random_wall (int wall) {
 
 int get_random_y (int y) {
   
-  
   if(rand() % 5 == 1) {
        y = - ((rand() % (-MAX_LIMIT+MIN_LIMIT)) - MIN_LIMIT);
   }
@@ -176,20 +175,30 @@ static void game_click(int button_id, bool long_click) {
   switch (button_id) {
     case BUTTON_ID_UP:
       if (ball_moving == 0) {
-        curr_direction = 1;
+        if (curr_direction == 0) {
+          curr_direction = 1;
+        }
+        else {
+          curr_direction = 0;
+        }
         ball_moving = 1;
       }
       
       break;
     case BUTTON_ID_DOWN:
       if (ball_moving == 0) {
-        curr_direction = 0;
+        if (curr_direction == 0) {
+          curr_direction = 1;
+        }
+        else {
+          curr_direction = 0;
+        }
         ball_moving = 1;
       }
       break;
     
     case BUTTON_ID_SELECT:
-      hole_pos =0;
+ 
       break;
   }
 }
