@@ -2,24 +2,31 @@
  * This is the bare minimum to make a looping game with PGE!
  */
 
-#include <pebble.h>
-#include "pge.h"
+#include "main.h"
   
 #define MARGIN 3
 #define WALL_WIDTH 8
-#define PLAYER_WIDTH 10
-#define HOLE_WIDTH (PLAYER_WIDTH * 4)
+#define BALL_RADIUS 10
+#define HOLE_WIDTH (BALL_RADIUS * 4)
 #define MAX_LIMIT -200
 #define MIN_LIMIT -100
 #define BALL_UPDATE_FREQ 0
-#define WALL_UPDATE_FREQ 3
+#define HOLES_UPDATE_FREQ 0
   
 static Window *s_game_window;
+static TextLayer *s_text_layer, *s_score_layer;
 
-int player_width = PLAYER_WIDTH;
-int currx, curry, boundx, boundy, default_left, default_right, default_bottom, curr_direction = 0, ball_moving = 0, difficulty_speed = 2;
+static char s_score_buffer[32];
+static int s_score = 0;
+
+int ball_radius = BALL_RADIUS;
+int currx, curry;
+int boundx, boundy;
+int default_left, default_right, default_bottom; 
+int curr_direction = 0, ball_moving = 0;
 int ball_count = 0, holes_count = 0;
-bool close_program = 0;
+int difficulty_speed = 10, hole_speed = 2;
+bool lost_game = 0, show_final_score = 0;
 
   
 GPoint createPoint(int a, int b)
@@ -36,6 +43,20 @@ struct wall_hole {
 } hole_list[10];
 
 
+int themes[10][10][3] = {{{177,235,0},{83,187,244},{255,133,203},{255,67,46},{255,172,0}}, {{241,125,128},{115,116,149},{104,168,173},{196,212,175},{108,134,114}}, {{11,153,188},{92,45,80},{212,14,82},{205,23,25},{252,224,20}}};
+int themes_no = 3;
+
+int get_random_theme () {
+	return (rand() % themes_no) ;
+}
+
+int random_colors = 0;
+int single_theme_index = 0;
+
+static void update_status_text() {
+  snprintf(s_score_buffer, sizeof(s_score_buffer), "Score: %d", s_score);
+  text_layer_set_text(s_score_layer, s_score_buffer);
+}
 
 int get_random_wall (int wall) {
   
@@ -96,8 +117,8 @@ static void move_ball () {
       int i = 0;
       for (i = 0; i < 6; i++) {
         if (curr_direction == hole_list[i].wall_side ) {
-          if (default_bottom - hole_list[i].y < HOLE_WIDTH && default_bottom - hole_list[i].y > 0) {
-            close_program = 1;
+          if (default_bottom - hole_list[i].y < HOLE_WIDTH / 1.1 && default_bottom - hole_list[i].y > HOLE_WIDTH - HOLE_WIDTH / 1.1) {
+            lost_game = 1;
           }  
         }
       }
@@ -111,26 +132,32 @@ static void move_ball () {
 }
 
 static void explode_ball () {
-  
-  if (curry > boundy/2) {
+
+  difficulty_speed+=1;
+  if (curry > default_bottom - 2) {
     curry--;
   }
-  
-  if (curr_direction == 1) {
-    if (currx > boundx/2) {
-      currx--;
-    }
-  }
-  else {
-    if (currx < boundx/2) {
-      currx++;
-    }
-  }
-  player_width++;
-  if (player_width > boundy + 20) {
-    
-  }
-  
+  if (show_final_score != 1) {
+	  if (curr_direction == 1 ) {
+	    if (currx < boundx + ball_radius) {
+	      currx+=difficulty_speed;
+	    }
+	    else {
+	    	show_final_score = 1;
+	    	text_layer_destroy(s_score_layer);
+	    }
+	  }
+	  else {
+	    if (currx > 0 - ball_radius - 1) {
+	      currx-=difficulty_speed;
+	    }
+	    else {
+	    	show_final_score = 1;
+	    	text_layer_destroy(s_score_layer);
+	    }
+	  }
+	}
+
 }
 
 int myabs(int a,int b){
@@ -143,7 +170,7 @@ int myabs(int a,int b){
 
 static void move_holes () {
   int i = 0;
-  if (holes_count == WALL_UPDATE_FREQ) {
+  if (holes_count == HOLES_UPDATE_FREQ) {
     for (i = 0; i < 6; i++) { 
       if (hole_list[i].wall_side == 999) {
         hole_list[i].wall_side = get_random_wall(hole_list[i].wall_side);
@@ -170,14 +197,14 @@ static void move_holes () {
           hole_list[i].wall_side = 999;
         }
         else {
-          hole_list[i].y ++;
+          hole_list[i].y += hole_speed;
           
         }
       }
     }
     holes_count = 0;
   }
-  if (WALL_UPDATE_FREQ != 0) {
+  if (HOLES_UPDATE_FREQ != 0) {
     holes_count++;
   }
 
@@ -214,10 +241,14 @@ static void move_holes () {
 
 static void game_logic() {
   
-  if (!close_program) {
-    move_ball();
   
+  if (!lost_game) {
+    move_ball();
     move_holes();
+
+    s_score++;
+    update_status_text();
+
   }
   
   else {
@@ -239,27 +270,59 @@ static void draw_holes(GContext *ctx) {
 static void game_draw(GContext *ctx) {
   // Per-frame game rendering here
   
-  graphics_context_set_stroke_color(ctx, GColorFromRGB(255, 0, 0));
-  graphics_context_set_fill_color(ctx, GColorFromRGB(255, 0, 0));
+  if (show_final_score == 0) {
 
-  graphics_fill_rect(ctx, GRect(MARGIN, MARGIN, WALL_WIDTH, boundy - 2 * MARGIN), 0, 0);
-  graphics_fill_rect(ctx, GRect(boundx - MARGIN - WALL_WIDTH, MARGIN, WALL_WIDTH, boundy - 2 * MARGIN), 0, 0);
-  
-  graphics_context_set_fill_color(ctx, GColorBlack);
-  draw_holes (ctx);
-  
-  graphics_context_set_fill_color(ctx, GColorFromRGB(0, 255, 0));
-    
-  graphics_fill_circle(ctx, GPoint(currx, curry), player_width);
 
-  //graphics_fill_rect(ctx, GRect(MARGIN, MARGIN + hole_pos, WALL_WIDTH, player_width * 2), 0, 0);
+  	int theme_index = single_theme_index;
+  	if (random_colors == 1) {
+  		theme_index = get_random_theme();
+  	}
+  	  
+
+	  graphics_context_set_stroke_color(ctx, GColorFromRGB(255, 0, 0));
+
+	  
+
+	  graphics_context_set_fill_color(ctx, GColorFromRGB(themes[theme_index][0][0], themes[theme_index][0][1], themes[theme_index][0][2]));
+
+	  graphics_fill_rect(ctx, GRect(MARGIN, MARGIN, WALL_WIDTH, boundy - 2 * MARGIN), 0, 0);
+	  graphics_fill_rect(ctx, GRect(boundx - MARGIN - WALL_WIDTH, MARGIN, WALL_WIDTH, boundy - 2 * MARGIN), 0, 0);
+	  
+
+	  
+
+
+	  graphics_context_set_fill_color(ctx, GColorBlack);
+	  draw_holes (ctx);
+	  
+	  graphics_context_set_fill_color(ctx, GColorFromRGB(themes[theme_index][1][0], themes[theme_index][1][1], themes[theme_index][1][2]));
+
+	  graphics_fill_circle(ctx, GPoint(currx, curry), ball_radius);
+
+
+	  graphics_context_set_fill_color(ctx, GColorFromRGB(themes[theme_index][2][0], themes[theme_index][2][1], themes[theme_index][2][2]));
+
+	  graphics_fill_rect(ctx, GRect(0, 0, MARGIN, boundy), 0, 0);
+	  graphics_fill_rect(ctx, GRect(0, 0, boundx, MARGIN), 0, 0);
+	  graphics_fill_rect(ctx, GRect(boundx - MARGIN, MARGIN, MARGIN, boundy - MARGIN), 0, 0);
+	  graphics_fill_rect(ctx, GRect(MARGIN, boundy - MARGIN, boundx- 2*MARGIN, MARGIN), 0, 0);
+
+}
+else {
+
+	  graphics_draw_text(ctx, "GAME OVER!", fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), GRect(10, boundy/2 - 30 , boundx - 20, 20), GTextOverflowModeFill, GTextAlignmentCenter, NULL);
+      graphics_draw_text(ctx, "FINAL SCORE:", fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), GRect(10, boundy/2 - 10 , boundx - 20, 20), GTextOverflowModeFill, GTextAlignmentCenter, NULL);
+      graphics_draw_text(ctx, s_score_buffer + 7, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), GRect(10, boundy/2 + 10 , boundx - 20, 20), GTextOverflowModeFill, GTextAlignmentCenter, NULL);
+ }
+
+  //graphics_fill_rect(ctx, GRect(MARGIN, MARGIN + hole_pos, WALL_WIDTH, ball_radius * 2), 0, 0);
   
 }
 
 static void game_click(int button_id, bool long_click) {
   switch (button_id) {
     case BUTTON_ID_UP:
-      if (ball_moving == 0) {
+      if (ball_moving == 0 && lost_game != 1) {
         if (curr_direction == 0) {
           curr_direction = 1;
         }
@@ -271,7 +334,7 @@ static void game_click(int button_id, bool long_click) {
       
       break;
     case BUTTON_ID_DOWN:
-      if (ball_moving == 0) {
+      if (ball_moving == 0 && lost_game != 1) {
         if (curr_direction == 0) {
           curr_direction = 1;
         }
@@ -283,7 +346,12 @@ static void game_click(int button_id, bool long_click) {
       break;
     
     case BUTTON_ID_SELECT:
- 
+ 	  
+ 	  if (random_colors == 0)
+      random_colors = 1;
+  		else
+  			random_colors = 0;
+
       break;
   }
 }
@@ -316,9 +384,14 @@ void init_holes () {
  
 }
 
-void pge_init() {
-  // Start the game, keep a Window reference for later
+static void splash_done_handler() {
+  // Create player's Ship
+
+  // Begin game loop
   s_game_window = pge_begin(GColorBlack, game_logic, game_draw, game_click);
+  pge_set_framerate(30);
+
+  // Create a window_layer to get screen boundaries
   
   Layer *window_layer = window_get_root_layer(s_game_window);
   GRect bounds = layer_get_frame(window_layer);
@@ -326,16 +399,42 @@ void pge_init() {
   boundx = bounds.size.w;
   boundy = bounds.size.h;
   
-  currx = MARGIN + WALL_WIDTH + player_width + MARGIN;
-  curry = boundy - player_width - MARGIN;
+  // Set the initial position of the ball
+
+  currx = MARGIN + WALL_WIDTH + ball_radius + MARGIN;
+  curry = boundy - ball_radius - MARGIN;
   
   default_left = currx;
-  default_right = boundx - (MARGIN * 2 + WALL_WIDTH + player_width); 
+  default_right = boundx - (MARGIN * 2 + WALL_WIDTH + ball_radius); 
   default_bottom = curry;
   
+  single_theme_color = get_random_theme();
+
+  // Initialize the holes in the walls
 
   init_holes();
-  //window_set_click_config_provider(s_game_window, config_provider);
+
+  // Create score layer
+
+  s_score_layer = text_layer_create(GRect(25, 0, boundx - 60, 20));
+  text_layer_set_text_color(s_score_layer, GColorWhite);
+  text_layer_set_background_color(s_score_layer, GColorBlack);
+  text_layer_set_font(s_score_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+  layer_add_child(window_get_root_layer(s_game_window), text_layer_get_layer(s_score_layer));  
+
+  // Setup score
+  update_status_text();
+
+  // Begin spawn loop
+  //app_timer_register(rand() % MAX_SPAWN_INTERVAL, spawn_handler, NULL);
+}
+
+void pge_init() {
+
+  
+ //srand(time(NULL));
+
+  pge_splash_show(splash_done_handler);
   
 }
 
@@ -343,6 +442,8 @@ void pge_init() {
 
 
 void pge_deinit() {
-  // Finish the game
+  // Destroy score layer
+  text_layer_destroy(s_score_layer);
+  // Finish game
   pge_finish();
 }
