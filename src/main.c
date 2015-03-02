@@ -45,13 +45,16 @@ struct wall_hole {
 
 int themes[10][10][3] = {{{177,235,0},{83,187,244},{255,133,203},{255,67,46},{255,172,0}}, {{241,125,128},{115,116,149},{104,168,173},{196,212,175},{108,134,114}}, {{11,153,188},{92,45,80},{212,14,82},{205,23,25},{252,224,20}}};
 int themes_no = 3;
+int random_colors = 0;
+int single_theme_index;
+int theme_index;
 
 int get_random_theme () {
-	return (rand() % themes_no) ;
+	int random = rand() % themes_no;
+	return random;
 }
 
-int random_colors = 0;
-int single_theme_index = 0;
+
 
 static void update_status_text() {
   snprintf(s_score_buffer, sizeof(s_score_buffer), "Score: %d", s_score);
@@ -133,31 +136,23 @@ static void move_ball () {
 
 static void explode_ball () {
 
-  difficulty_speed+=1;
-  if (curry > default_bottom - 2) {
-    curry--;
-  }
-  if (show_final_score != 1) {
-	  if (curr_direction == 1 ) {
-	    if (currx < boundx + ball_radius) {
-	      currx+=difficulty_speed;
-	    }
-	    else {
-	    	show_final_score = 1;
-	    	text_layer_destroy(s_score_layer);
-	    }
-	  }
-	  else {
-	    if (currx > 0 - ball_radius - 1) {
+	if (curry > default_bottom - 2) {
+		difficulty_speed+=1;
+		curry--;
+	}
+
+	if (curr_direction == 1 && currx < boundx + ball_radius) {
+		currx+=difficulty_speed;
+	}
+	else {
+		if (curr_direction == 0 && currx > 0 - ball_radius - 1) {
 	      currx-=difficulty_speed;
 	    }
 	    else {
 	    	show_final_score = 1;
 	    	text_layer_destroy(s_score_layer);
 	    }
-	  }
 	}
-
 }
 
 int myabs(int a,int b){
@@ -198,7 +193,6 @@ static void move_holes () {
         }
         else {
           hole_list[i].y += hole_speed;
-          
         }
       }
     }
@@ -249,12 +243,17 @@ static void game_logic() {
     s_score++;
     update_status_text();
 
+    theme_index = single_theme_index;
+  	if (random_colors == 1) {
+  		theme_index = get_random_theme();
+  	}
+
   }
-  
   else {
-    explode_ball();
-  }
-  
+  	if (show_final_score != 1) {
+    	explode_ball();
+  	}
+  } 
 }
 
 static void draw_holes(GContext *ctx) {
@@ -271,12 +270,6 @@ static void game_draw(GContext *ctx) {
   // Per-frame game rendering here
   
   if (show_final_score == 0) {
-
-
-  	int theme_index = single_theme_index;
-  	if (random_colors == 1) {
-  		theme_index = get_random_theme();
-  	}
   	  
 
 	  graphics_context_set_stroke_color(ctx, GColorFromRGB(255, 0, 0));
@@ -387,6 +380,8 @@ void init_holes () {
 static void splash_done_handler() {
   // Create player's Ship
 
+
+  single_theme_index = get_random_theme();
   // Begin game loop
   s_game_window = pge_begin(GColorBlack, game_logic, game_draw, game_click);
   pge_set_framerate(30);
@@ -407,9 +402,9 @@ static void splash_done_handler() {
   default_left = currx;
   default_right = boundx - (MARGIN * 2 + WALL_WIDTH + ball_radius); 
   default_bottom = curry;
-  
-  single_theme_color = get_random_theme();
 
+  
+  
   // Initialize the holes in the walls
 
   init_holes();
@@ -430,7 +425,8 @@ static void splash_done_handler() {
 }
 
 void pge_init() {
-
+  srand(time(NULL));
+  
   
  //srand(time(NULL));
 
@@ -442,8 +438,10 @@ void pge_init() {
 
 
 void pge_deinit() {
-  // Destroy score layer
-  text_layer_destroy(s_score_layer);
-  // Finish game
-  pge_finish();
+	// Destroy score layer
+	if (show_final_score != 1) {
+		text_layer_destroy(s_score_layer);
+	}
+	// Finish game
+	pge_finish();
 }
